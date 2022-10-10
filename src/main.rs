@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::{offset::Utc, DateTime, Duration};
 use clap::Parser;
 use hex::ToHex;
@@ -67,19 +67,25 @@ fn parse_pattern(cli: &Cli) -> Result<Vec<String>> {
     let pattern_file = &cli.pattern;
     let mut pattern = vec![];
 
-    let f = fs::File::open(pattern_file)?;
+    let f = fs::File::open(pattern_file)
+        .with_context(|| format!("Can not find Pattern file in '{}'", pattern_file.display()))?;
     let lines = io::BufReader::new(f).lines();
     for line in lines {
-        let line = line?.to_uppercase();
+        let line = line?.trim().to_uppercase();
         match line.len() {
-            0 => {}
-            1..=4 => {
-                println!("Warning: too short patterns are included, this may cause perfermance issue. too many Secret key will be saved!")
+            0..=4 => {
+                println!("Warning: too short(<=4) patterns are included, this may cause perfermance issue.");
+                println!("Warning: For secure those patterns are ignored");
             }
             _ => {
                 pattern.push(line);
             }
         }
+    }
+    if pattern.is_empty() {
+        let default_pattern = "ABCDEF".to_string();
+        println!("Warning: No patterns found, use default pattern '{}'", default_pattern);
+        pattern.push(default_pattern);
     }
     Ok(pattern)
 }
