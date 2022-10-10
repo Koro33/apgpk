@@ -26,12 +26,12 @@ use std::{
 struct Cli {
     #[arg(long, default_value_t = std::thread::available_parallelism().unwrap().get())]
     threads: usize,
-    #[arg(long, default_value_t = 60*60*24)]
+    #[arg(long, default_value_t = 60*60*24*30)]
     max_backshift: i64,
     #[arg(long, default_value_t = String::from("apgpk"))]
     uid: String,
     #[arg(long, default_value = "./pattern.txt")]
-    pattern_file: PathBuf,
+    pattern: PathBuf,
     #[arg(long, default_value = "./output")]
     output: PathBuf,
 }
@@ -64,7 +64,7 @@ fn check_output_dir(path: impl AsRef<Path>) -> Result<()> {
 }
 
 fn parse_pattern(cli: &Cli) -> Result<Vec<String>> {
-    let pattern_file = &cli.pattern_file;
+    let pattern_file = &cli.pattern;
     let mut pattern = vec![];
 
     let f = fs::File::open(pattern_file)?;
