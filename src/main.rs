@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use chrono::{offset::Utc, DateTime, Duration};
+use chrono::{offset::Utc, Duration};
 use clap::Parser;
 use hex::ToHex;
 use pgp::{
@@ -28,11 +28,11 @@ struct Cli {
     threads: usize,
     #[arg(long, default_value_t = 60*60*24*30)]
     max_backshift: i64,
-    #[arg(long, default_value_t = String::from("apgpk"))]
+    #[arg(long, default_value_t = String::from("apgpker"))]
     uid: String,
-    #[arg(long, default_value = "./pattern.txt")]
+    #[arg(long, default_value = "./pattern")]
     pattern: PathBuf,
-    #[arg(long, default_value = "./output")]
+    #[arg(long, default_value = "./key")]
     output: PathBuf,
 }
 
@@ -58,6 +58,10 @@ fn check_output_dir(path: impl AsRef<Path>) -> Result<()> {
             return Err(anyhow!("path is not dir"));
         }
     } else {
+        println!(
+            "Warning: Path '{}' is not exist, creating...",
+            path.display()
+        );
         fs::create_dir(path)?;
     }
     Ok(())
@@ -67,15 +71,30 @@ fn parse_pattern(cli: &Cli) -> Result<Vec<String>> {
     let pattern_file = &cli.pattern;
     let mut pattern = vec![];
 
-    let f = fs::File::open(pattern_file)
-        .with_context(|| format!("Can not find Pattern file in '{}'", pattern_file.display()))?;
+    if pattern_file.exists() {
+        if !pattern_file.is_file() {
+            return Err(anyhow!(
+                "Path {} isn't a file, cannot parse patterns from it",
+                pattern_file.display()
+            ));
+        }
+    } else {
+        fs::File::create(pattern_file).with_context(|| anyhow!("Cannot create pattern file"))?;
+    }
+
+    let f = fs::File::open(pattern_file)?;
     let lines = io::BufReader::new(f).lines();
+    let mut warning_displayed = false;
     for line in lines {
         let line = line?.trim().to_uppercase();
         match line.len() {
-            0..=4 => {
-                println!("Warning: too short(<=4) patterns are included, this may cause perfermance issue.");
-                println!("Warning: For secure those patterns are ignored");
+            0 => {}
+            1..=4 => {
+                if !warning_displayed {
+                    println!("Warning: too short(<=4) patterns are included, this may cause perfermance issue.");
+                    println!("Warning: For secure those patterns are ignored");
+                    warning_displayed = true;
+                }
             }
             _ => {
                 pattern.push(line);
@@ -84,7 +103,10 @@ fn parse_pattern(cli: &Cli) -> Result<Vec<String>> {
     }
     if pattern.is_empty() {
         let default_pattern = "ABCDEF".to_string();
-        println!("Warning: No patterns found, use default pattern '{}'", default_pattern);
+        println!(
+            "Warning: No patterns found, use default pattern '{}'",
+            default_pattern
+        );
         pattern.push(default_pattern);
     }
     Ok(pattern)
