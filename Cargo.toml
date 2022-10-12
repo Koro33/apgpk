@@ -3,16 +3,26 @@ name = "apgpk"
 version = "0.1.0"
 edition = "2021"
 authors = ["koro33 <koro33g@gmail.com>"]
+license = "AGPL-3.0-only"
 description = "Find an awesome PGP key"
+readme = "README.md"
+homepage = "https://github.com/Koro33/apgpk"
+repository = "https://github.com/Koro33/apgpk"
 
 
 [dependencies]
-pgp = "0"
+pgp = "0.8"
 anyhow = "1"
 chrono = "0"
 hex = "0"
 clap = { version = "4", features = ["derive"] }
 ctrlc = { version = "3", features = ["termination"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+
+[dev-dependencies]
+criterion = "0.4"
 
 
 [profile.release]

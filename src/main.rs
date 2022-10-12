@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use chrono::{offset::Utc, Duration};
 use clap::Parser;
 use hex::ToHex;
@@ -20,6 +20,7 @@ use std::{
     },
     thread,
 };
+use tracing_subscriber::{prelude::*, EnvFilter};
 
 #[derive(Parser, Clone, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -32,7 +33,7 @@ struct Cli {
     uid: String,
     #[arg(long, default_value = "./pattern")]
     pattern: PathBuf,
-    #[arg(long, default_value = "./key")]
+    #[arg(long, default_value = "./output")]
     output: PathBuf,
 }
 
@@ -55,13 +56,12 @@ fn check_output_dir(path: impl AsRef<Path>) -> Result<()> {
     let path = path.as_ref();
     if path.exists() {
         if path.is_file() {
-            return Err(anyhow!("path is not dir"));
+            let err_text = format!("Path '{}' is not a directory", path.display());
+            tracing::error!(err_text);
+            bail!(err_text);
         }
     } else {
-        println!(
-            "Warning: Path '{}' is not exist, creating...",
-            path.display()
-        );
+        tracing::warn!("Path '{}' doesn't exist, creating...", path.display());
         fs::create_dir(path)?;
     }
     Ok(())
@@ -72,11 +72,13 @@ fn parse_pattern(cli: &Cli) -> Result<Vec<String>> {
     let mut pattern = vec![];
 
     if pattern_file.exists() {
-        if !pattern_file.is_file() {
-            return Err(anyhow!(
+        if pattern_file.is_dir() {
+            let err_text = format!(
                 "Path {} isn't a file, cannot parse patterns from it",
                 pattern_file.display()
-            ));
+            );
+            tracing::error!(err_text);
+            bail!(err_text);
         }
     } else {
         fs::File::create(pattern_file).with_context(|| anyhow!("Cannot create pattern file"))?;
@@ -84,26 +86,27 @@ fn parse_pattern(cli: &Cli) -> Result<Vec<String>> {
 
     let f = fs::File::open(pattern_file)?;
     let lines = io::BufReader::new(f).lines();
-    let mut warning_displayed = false;
+    let mut short_pattern_warning = false;
     for line in lines {
         let line = line?.trim().to_uppercase();
         match line.len() {
             0 => {}
             1..=4 => {
-                if !warning_displayed {
-                    println!("Warning: too short(<=4) patterns are included, this may cause perfermance issue.");
-                    println!("Warning: For secure those patterns are ignored");
-                    warning_displayed = true;
-                }
+                short_pattern_warning = true;
             }
             _ => {
                 pattern.push(line);
             }
         }
     }
+
+    if short_pattern_warning {
+        tracing::warn!("Too short(<=4) patterns are included, this may cause perfermance issue. For secure those patterns are ignored")
+    }
+
     if pattern.is_empty() {
         let default_pattern = "ABCDEF".to_string();
-        println!(
+        tracing::warn!(
             "Warning: No patterns found, use default pattern '{}'",
             default_pattern
         );
@@ -151,11 +154,26 @@ fn task(
     Ok(())
 }
 
+fn init_log() {
+    // from env variable RUST_LOG
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("apgpk=debug"));
+    let formatting_layer = tracing_subscriber::fmt::layer().with_writer(std::io::stdout);
+    tracing_subscriber::registry()
+        .with(env_filter)
+        .with(formatting_layer)
+        .init();
+}
+
 fn main() -> Result<()> {
+    init_log();
+    tracing::debug!("Log engine initialized");
+
     let cli = Cli::parse();
 
     let pattern = parse_pattern(&cli)?;
-    println!("Given Pattern {:?}", pattern);
+    tracing::info!("Given Pattern {:?}", pattern);
+
     check_output_dir(cli.output.to_owned())?;
 
     let (res_tx, res_rx) = mpsc::channel();
@@ -166,7 +184,11 @@ fn main() -> Result<()> {
     ctrlc::set_handler(move || {
         ctrlc_exit.store(true, Ordering::Relaxed);
     })
-    .expect("Error setting Ctrl-C handler");
+    .with_context(|| {
+        let err_text = format!("Error setting Ctrl-C handler");
+        tracing::error!(err_text);
+        anyhow!(err_text)
+    })?;
 
     let mut thread_pool = vec![];
     for i in 0..cli.threads {
@@ -176,7 +198,7 @@ fn main() -> Result<()> {
         let thread_exit = thread_exit.clone();
 
         let handle = thread::spawn(move || -> Result<()> {
-            println!("Thread {} has been created", i);
+            tracing::debug!("Thread {} has been created", i);
             loop {
                 task(&cli, &pattern, &thread_exit, &res_tx)?;
 
@@ -185,7 +207,7 @@ fn main() -> Result<()> {
                     break;
                 }
             }
-            println!("Thread {} complete", i);
+            tracing::debug!("Thread {} complete", i);
             Ok(())
         });
         thread_pool.push(handle);
@@ -195,11 +217,11 @@ fn main() -> Result<()> {
     drop(res_tx);
 
     for k in res_rx {
-        println!("Find key: {}", k.fingerprint().encode_hex_upper::<String>());
+        tracing::info!("Find key: {}", k.fingerprint().encode_hex_upper::<String>());
         save_key(&k, cli.output.to_owned())?;
     }
 
-    println!("SIGNINT received, exit...");
+    tracing::info!("SIGNINT received, exit...");
 
     for handle in thread_pool {
         handle.join().unwrap().unwrap();
