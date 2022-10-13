@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Context, Result};
-use chrono::{offset::Utc, Duration};
+use chrono;
 use clap::Parser;
 use hex::ToHex;
 use pgp::{
@@ -9,6 +9,7 @@ use pgp::{
     },
     types::KeyTrait,
 };
+
 use std::{
     fs,
     io::{self, BufRead},
@@ -19,6 +20,7 @@ use std::{
         Arc,
     },
     thread,
+    time::{Duration, Instant},
 };
 use tracing_subscriber::{prelude::*, EnvFilter};
 
@@ -27,7 +29,7 @@ use tracing_subscriber::{prelude::*, EnvFilter};
 struct Cli {
     #[arg(long, default_value_t = std::thread::available_parallelism().unwrap().get())]
     threads: usize,
-    #[arg(long, default_value_t = 60*60*24*30)]
+    #[arg(long, default_value_t = 60*60*24)]
     max_backshift: i64,
     #[arg(long, default_value_t = String::from("apgpker"))]
     uid: String,
@@ -112,16 +114,13 @@ fn parse_pattern(cli: &Cli) -> Result<Vec<String>> {
         );
         pattern.push(default_pattern);
     }
+
     Ok(pattern)
 }
 
-fn task(
-    cli: &Cli,
-    pars: &Vec<String>,
-    exit: &Arc<AtomicBool>,
-    res_tx: &Sender<SecretKey>,
-) -> Result<()> {
-    let t = Utc::now();
+fn task(cli: &Cli, pars: &Vec<String>, exit: &Arc<AtomicBool>, res_tx: &Sender<Msg>) -> Result<()> {
+    let loop_begin = Instant::now();
+    let t = chrono::offset::Utc::now();
     let mut backshift = 0i64;
 
     let mut pgp_builder = SecretKeyParamsBuilder::default();
@@ -133,28 +132,26 @@ fn task(
         .created_at(t);
 
     while backshift < cli.max_backshift {
-        pgp_builder.created_at(t - Duration::seconds(backshift));
+        pgp_builder.created_at(t - chrono::Duration::seconds(backshift));
         let k = pgp_builder.build().unwrap().generate().unwrap();
         let k_fp = k.fingerprint().encode_hex_upper::<String>();
         for par in pars {
             if k_fp.ends_with(par) {
-                res_tx.send(k.clone())?;
-            }
-        }
-
-        if backshift % (60 * 60) == 0 {
-            if exit.load(Ordering::Relaxed) {
-                drop(res_tx);
-                break;
+                res_tx.send(Msg::Key(k.clone()))?;
             }
         }
 
         backshift += 1;
     }
+
+    res_tx.send(Msg::Speed(
+        cli.max_backshift as f64,
+        loop_begin.elapsed().as_millis() as f64 / 1000.,
+    ))?;
     Ok(())
 }
 
-fn init_log() {
+fn log_init() {
     // from env variable RUST_LOG
     let env_filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("apgpk=debug"));
@@ -163,11 +160,16 @@ fn init_log() {
         .with(env_filter)
         .with(formatting_layer)
         .init();
+    tracing::debug!("Log engine is initialized");
+}
+
+enum Msg {
+    Key(SecretKey),
+    Speed(f64, f64), // (items, interval)
 }
 
 fn main() -> Result<()> {
-    init_log();
-    tracing::debug!("Log engine initialized");
+    log_init();
 
     let cli = Cli::parse();
 
@@ -176,12 +178,13 @@ fn main() -> Result<()> {
 
     check_output_dir(cli.output.to_owned())?;
 
-    let (res_tx, res_rx) = mpsc::channel();
+    let (msg_tx, msg_rx) = mpsc::channel();
     let thread_exit = Arc::new(AtomicBool::new(false));
 
     // Setup ctrlc signal
     let ctrlc_exit = thread_exit.clone();
     ctrlc::set_handler(move || {
+        tracing::info!("SIGNINT received, waiting all threads to exit...");
         ctrlc_exit.store(true, Ordering::Relaxed);
     })
     .with_context(|| {
@@ -194,7 +197,7 @@ fn main() -> Result<()> {
     for i in 0..cli.threads {
         let cli = cli.clone();
         let pattern = pattern.clone();
-        let res_tx = res_tx.clone();
+        let res_tx = msg_tx.clone();
         let thread_exit = thread_exit.clone();
 
         let handle = thread::spawn(move || -> Result<()> {
@@ -214,18 +217,32 @@ fn main() -> Result<()> {
     }
 
     // drop original tx
-    drop(res_tx);
+    drop(msg_tx);
 
-    for k in res_rx {
-        tracing::info!("Find key: {}", k.fingerprint().encode_hex_upper::<String>());
-        save_key(&k, cli.output.to_owned())?;
+    let mut current_speed = 0f64;
+    let mut last_show_speed = Instant::now();
+    let show_speed_interval = Duration::from_secs(30);
+    for msg in msg_rx {
+        match msg {
+            Msg::Key(k) => {
+                tracing::info!("Find key: {}", k.fingerprint().encode_hex_upper::<String>());
+                save_key(&k, cli.output.to_owned())?;
+            }
+            Msg::Speed(items, interval) => {
+                current_speed = (current_speed * interval + items) / 2. / interval;
+                let now = Instant::now();
+                if (now - last_show_speed) > show_speed_interval {
+                    tracing::info!("Current speed ({} threads) {:.2} key/s", cli.threads, current_speed * cli.threads as f64);
+                    last_show_speed = now;
+                }
+            }
+        }
     }
-
-    tracing::info!("SIGNINT received, exit...");
 
     for handle in thread_pool {
         handle.join().unwrap().unwrap();
     }
+    tracing::info!("Shutdown");
 
     Ok(())
 }
@@ -235,8 +252,8 @@ mod tests {
 
     use super::*;
     use std::thread;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
     #[test]
-    fn test_mpsc() {}
+    fn test_time() {}
 }
