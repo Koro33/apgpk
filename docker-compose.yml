@@ -1,0 +1,12 @@
+version: "3"
+
+services:
+  apgpk:
+    image: apgpk:latest
+    restart: unless-stopped
+    volumes:
+      - ./pattern:/etc/apgpk/pattern:ro
+      - ./key:/etc/apgpk/key
+    environment:
+      - RUST_LOG=apgpk=info
+    command: ["--pattern", "./pattern", "--output", "./key"]
