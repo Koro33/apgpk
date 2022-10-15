@@ -27,16 +27,16 @@ use tracing_subscriber::{prelude::*, EnvFilter};
 #[derive(Parser, Clone, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
+    #[arg(short, long)]
+    pattern: PathBuf,
+    #[arg(long, default_value = "./key")]
+    output: PathBuf,
     #[arg(long, default_value_t = std::thread::available_parallelism().unwrap().get())]
     threads: usize,
     #[arg(long, default_value_t = 60*60*24)]
     max_backshift: i64,
     #[arg(long, default_value_t = String::from("apgpker"))]
     uid: String,
-    #[arg(long, default_value = "./pattern")]
-    pattern: PathBuf,
-    #[arg(long, default_value = "./output")]
-    output: PathBuf,
 }
 
 fn save_key(k: &SecretKey, dir: impl AsRef<Path>) -> Result<String> {
