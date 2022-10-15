@@ -111,7 +111,7 @@ fn parse_pattern(cli: &Cli) -> Result<Vec<String>> {
     if pattern.is_empty() {
         let default_pattern = "ABCDEF".to_string();
         tracing::warn!(
-            "Warning: No patterns found, use default pattern '{}'",
+            "Warning: No pattern found, use default pattern '{}'",
             default_pattern
         );
         pattern.push(default_pattern);
@@ -171,9 +171,9 @@ enum Msg {
 }
 
 fn main() -> Result<()> {
-    log_init();
-
     let cli = Cli::parse();
+
+    log_init();
 
     let pattern = parse_pattern(&cli)?;
     tracing::info!("Given Pattern {:?}", pattern);
@@ -234,7 +234,11 @@ fn main() -> Result<()> {
                 current_speed = (current_speed * interval + items) / 2. / interval;
                 let now = Instant::now();
                 if (now - last_show_speed) > show_speed_interval {
-                    tracing::info!("Current speed ({} threads) {:.2} key/s", cli.threads, current_speed * cli.threads as f64);
+                    tracing::info!(
+                        "Current speed ({} threads) {:.2} key/s",
+                        cli.threads,
+                        current_speed * cli.threads as f64
+                    );
                     last_show_speed = now;
                 }
             }
@@ -257,5 +261,5 @@ mod tests {
     use std::time::{Duration, Instant};
 
     #[test]
-    fn test_time() {}
+    fn test_fs() {}
 }
