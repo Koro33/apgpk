@@ -73,17 +73,19 @@ fn parse_pattern(cli: &Cli) -> Result<Vec<String>> {
     let pattern_file = &cli.pattern;
     let mut pattern = vec![];
 
-    if pattern_file.exists() {
-        if pattern_file.is_dir() {
-            let err_text = format!(
-                "Path {} isn't a file, cannot parse patterns from it",
-                pattern_file.display()
-            );
-            tracing::error!(err_text);
-            bail!(err_text);
-        }
-    } else {
-        fs::File::create(pattern_file).with_context(|| anyhow!("Cannot create pattern file"))?;
+    if !pattern_file.exists() {
+        let err_text = format!("");
+        tracing::error!(err_text);
+        bail!(err_text);
+    }
+
+    if pattern_file.is_dir() {
+        let err_text = format!(
+            "Path {} isn't a file, cannot parse patterns from it",
+            pattern_file.display()
+        );
+        tracing::error!(err_text);
+        bail!(err_text);
     }
 
     let f = fs::File::open(pattern_file)?;
