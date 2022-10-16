@@ -1,6 +1,5 @@
 ###########################################################################
-FROM rustlang/rust:nightly-alpine as build
-RUN apk add musl-dev
+FROM rustlang/rust:nightly-slim as build
 WORKDIR /build
 
 COPY ./Cargo.toml ./Cargo.lock ./
@@ -13,8 +12,7 @@ RUN touch -a -m ./src/main.rs \
     && cargo build --release
 
 ###########################################################################
-FROM alpine:latest
-
+FROM debian:bullseye-slim
 WORKDIR /etc/apgpk
 COPY --from=build /build/target/release/apgpk ./bin/
 RUN mkdir -p key \ 
