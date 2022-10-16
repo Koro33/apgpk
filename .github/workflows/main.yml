@@ -1,0 +1,67 @@
+name: build-and-release
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # x86_64-linux-gnu
+          - arch-name: x86_64-linux-gnu
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            cross: false
+            file-ext:
+          # x86_64-windows-msvc
+          - arch-name: x86_64-windows-msvc
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            cross: false
+            file-ext: .exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get the latest tag
+        id: tag
+        uses: "WyriHaximus/github-action-get-previous-tag@v1"
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.cross }}
+          command: build
+          args: --release --target ${{ matrix.target }}
+      
+      - name: Move binaries and Calculate SHA256
+        run: |
+          mkdir artifacts/
+          mv target/${{ matrix.target }}/release/apgpk${{ matrix.file-ext }} artifacts/apgpk-${{ steps.tag.outputs.tag }}-${{ matrix.arch-name }}${{ matrix.file-ext }}
+          openssl dgst -sha256 -r artifacts/apgpk-${{ steps.tag.outputs.tag }}-${{ matrix.arch-name }}${{ matrix.file-ext }} > artifacts/apgpk-${{ steps.tag.outputs.tag }}-${{ matrix.arch-name }}${{ matrix.file-ext }}.sha256sum
+      - name: Release binaries
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "artifacts/*"
+          tag: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          allowUpdates: true
+
+      
