@@ -58,9 +58,8 @@ fn check_output_dir(path: impl AsRef<Path>) -> Result<()> {
     let path = path.as_ref();
     if path.exists() {
         if path.is_file() {
-            let err_text = format!("Path '{}' is not a directory", path.display());
-            tracing::error!(err_text);
-            bail!(err_text);
+            tracing::error!("Path '{}' is not a directory", path.display());
+            bail!("");
         }
     } else {
         tracing::warn!("Path '{}' doesn't exist, creating...", path.display());
@@ -74,18 +73,16 @@ fn parse_pattern(cli: &Cli) -> Result<Vec<String>> {
     let mut pattern = vec![];
 
     if !pattern_file.exists() {
-        let err_text = format!("");
-        tracing::error!(err_text);
-        bail!(err_text);
+        tracing::error!("Pattern file '{}' doesn't exists", pattern_file.display());
+        bail!("");
     }
 
     if pattern_file.is_dir() {
-        let err_text = format!(
-            "Path {} isn't a file, cannot parse patterns from it",
+        tracing::error!(
+            "Path '{}' isn't a file, cannot parse patterns from it",
             pattern_file.display()
         );
-        tracing::error!(err_text);
-        bail!(err_text);
+        bail!("");
     }
 
     let f = fs::File::open(pattern_file)?;
@@ -156,7 +153,7 @@ fn task(cli: &Cli, pars: &Vec<String>, exit: &Arc<AtomicBool>, res_tx: &Sender<M
 fn log_init() {
     // from env variable RUST_LOG
     let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("apgpk=debug"));
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("apgpk=info"));
     let formatting_layer = tracing_subscriber::fmt::layer().with_writer(std::io::stdout);
     tracing_subscriber::registry()
         .with(env_filter)
@@ -190,9 +187,8 @@ fn main() -> Result<()> {
         ctrlc_exit.store(true, Ordering::Relaxed);
     })
     .with_context(|| {
-        let err_text = format!("Error setting Ctrl-C handler");
-        tracing::error!(err_text);
-        anyhow!(err_text)
+        tracing::error!("Error setting Ctrl-C handler");
+        anyhow!("")
     })?;
 
     let mut thread_pool = vec![];
