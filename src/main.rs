@@ -9,7 +9,6 @@ use pgp::{
     },
     types::KeyTrait,
 };
-
 use std::{
     fs,
     io::{self, BufRead},
@@ -191,28 +190,28 @@ fn main() -> Result<()> {
         anyhow!("")
     })?;
 
-    let mut thread_pool = vec![];
-    for i in 0..cli.threads {
-        let cli = cli.clone();
-        let pattern = pattern.clone();
-        let res_tx = msg_tx.clone();
-        let thread_exit = thread_exit.clone();
+    let handles: Vec<_> = (0..cli.threads)
+        .map(|i| {
+            let cli = cli.clone();
+            let pattern = pattern.clone();
+            let res_tx = msg_tx.clone();
+            let thread_exit = thread_exit.clone();
 
-        let handle = thread::spawn(move || -> Result<()> {
-            tracing::debug!("Thread {} has been created", i);
-            loop {
-                task(&cli, &pattern, &thread_exit, &res_tx)?;
+            thread::spawn(move || -> Result<()> {
+                tracing::debug!("Thread {} has been created", i);
+                loop {
+                    task(&cli, &pattern, &thread_exit, &res_tx)?;
 
-                if thread_exit.load(Ordering::Relaxed) {
-                    drop(res_tx);
-                    break;
+                    if thread_exit.load(Ordering::Relaxed) {
+                        drop(res_tx);
+                        break;
+                    }
                 }
-            }
-            tracing::debug!("Thread {} complete", i);
-            Ok(())
-        });
-        thread_pool.push(handle);
-    }
+                tracing::debug!("Thread {} complete", i);
+                Ok(())
+            })
+        })
+        .collect();
 
     // drop original tx
     drop(msg_tx);
@@ -241,9 +240,10 @@ fn main() -> Result<()> {
         }
     }
 
-    for handle in thread_pool {
-        handle.join().unwrap().unwrap();
-    }
+    handles.into_iter().for_each(|h| {
+        h.join().unwrap().unwrap();
+    });
+
     tracing::info!("Shutdown");
 
     Ok(())
