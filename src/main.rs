@@ -26,14 +26,21 @@ use tracing_subscriber::{prelude::*, EnvFilter};
 #[derive(Parser, Clone, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    #[arg(short, long)]
+    /// Path of the pattern file, one pattern per line.
+    #[arg(short, long, value_name = "PATH")]
     pattern: PathBuf,
-    #[arg(long, default_value = "./key")]
+    /// Output directory to save the key
+    #[arg(long, value_name = "PATH", default_value = "./key")]
     output: PathBuf,
+    /// Numbers of threads to calculate
     #[arg(long, default_value_t = std::thread::available_parallelism().unwrap().get())]
     threads: usize,
+    /// The max backshift of time when calculating keys.
+    /// 
+    /// Changing this default value is not recommended.
     #[arg(long, default_value_t = 60*60*24)]
     max_backshift: i64,
+    /// Default uid
     #[arg(long, default_value_t = String::from("apgpker"))]
     uid: String,
 }
@@ -172,7 +179,7 @@ fn main() -> Result<()> {
     log_init();
 
     let pattern = parse_pattern(&cli)?;
-    tracing::info!("Given Pattern {:?}", pattern);
+    tracing::info!("Find by pattern {:?}", pattern);
 
     check_output_dir(cli.output.to_owned())?;
 
