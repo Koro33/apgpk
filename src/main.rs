@@ -30,13 +30,13 @@ struct Cli {
     #[arg(short, long, value_name = "PATH")]
     pattern: PathBuf,
     /// Output directory to save the key
-    #[arg(long, value_name = "PATH", default_value = "./key")]
+    #[arg(short, long, value_name = "PATH", default_value = "./key")]
     output: PathBuf,
     /// Numbers of threads to calculate
-    #[arg(long, default_value_t = std::thread::available_parallelism().unwrap().get())]
+    #[arg(short, long, default_value_t = std::thread::available_parallelism().unwrap().get())]
     threads: usize,
     /// The max backshift of time when calculating keys.
-    /// 
+    ///
     /// Changing this default value is not recommended.
     #[arg(long, default_value_t = 60*60*24)]
     max_backshift: i64,
@@ -179,7 +179,8 @@ fn main() -> Result<()> {
     log_init();
 
     let pattern = parse_pattern(&cli)?;
-    tracing::info!("Find by pattern {:?}", pattern);
+    tracing::info!("Runing with {} threads", cli.threads);
+    tracing::info!("Find key by pattern {:?}", pattern);
 
     check_output_dir(cli.output.to_owned())?;
 
@@ -189,7 +190,7 @@ fn main() -> Result<()> {
     // Setup ctrlc signal
     let ctrlc_exit = thread_exit.clone();
     ctrlc::set_handler(move || {
-        tracing::info!("SIGNINT received, waiting all threads to exit...");
+        tracing::warn!("SIGNINT received, waiting all threads to exit...");
         ctrlc_exit.store(true, Ordering::Relaxed);
     })
     .with_context(|| {
