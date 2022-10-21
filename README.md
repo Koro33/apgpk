@@ -43,6 +43,22 @@ FFFFFF
 
 > The patterns with length less than 4 are not recommended, which may result in too many keys being generated.
 
+```log
+$ ./apgpk -p pattern -o ./key
+2022-10-11T22:55:08.712217Z  INFO apgpk: Runing with 8 threads
+2022-10-11T22:55:08.712235Z  INFO apgpk: Find key by pattern ["AAAAAAAA", "ABCDEF0", "EE2EE2EE", "0123456789ABCDEF", "FFFFFF"]
+2022-10-11T22:55:38.751304Z  INFO apgpk: Current speed (8 threads) 186166.36 key/s
+...
+2022-10-11T22:57:09.989945Z  INFO apgpk: Current speed (8 threads) 187553.42 key/s
+2022-10-11T22:57:18.375451Z  INFO apgpk: Find key: 65611DC454F49F3851422E3B97694D5749FFFFFF
+...
+2022-10-11T22:58:40.756333Z  INFO apgpk: Current speed (8 threads) 186955.45 key/s
+...
+# Press Ctrl+C or Send SIGNINT to kill
+2022-10-11T22:58:42.915362Z  WARN apgpk: SIGNINT received, waiting all threads to exit...
+2022-10-11T22:58:44.870096Z  INFO apgpk: Shutdown
+```
+
 You can find the keys in output directory, which match the pattern. Choose an awesome one and use `gpg --import {FINGERPRINT}.asc` to import it. Then you can edit the key, change the default uid or set passphrase for it.
 
 ## Compile
