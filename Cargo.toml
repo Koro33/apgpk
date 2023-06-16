@@ -11,18 +11,18 @@ repository = "https://github.com/Koro33/apgpk"
 
 
 [dependencies]
-pgp = "0.8"
-anyhow = "1"
-chrono = "0"
-hex = "0"
-clap = { version = "4", features = ["derive"] }
-ctrlc = { version = "3", features = ["termination"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+pgp = "0.10.1"
+anyhow = "1.0.71"
+chrono = "0.4.26"
+hex = "0.4.3"
+clap = { version = "4.3.0", features = ["derive"] }
+ctrlc = { version = "3.4.0", features = ["termination"] }
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 
 
 [dev-dependencies]
-criterion = "0.4"
+criterion = "0.5.1"
 
 
 [profile.release]
