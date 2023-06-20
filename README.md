@@ -1,6 +1,6 @@
 # apgpk
 
-[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/Koro33/apgpk?include_prereleases)](https://github.com/Koro33/apgpk/releases) [![GitHub repo size](https://img.shields.io/github/repo-size/Koro33/apgpk)](https://github.com/Koro33/apgpk/archive/main.zip) [![Rust](https://img.shields.io/badge/Rust-nightly-brightgreen)](https://www.rust-lang.org/) [![license](https://img.shields.io/github/license/Koro33/apgpk)](https://github.com/Koro33/apgpk/blob/main/LICENSE) [![GitHub Repo stars](https://img.shields.io/github/stars/Koro33/apgpk?style=social)](https://github.com/Koro33/apgpk)
+[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/Koro33/apgpk?include_prereleases)](https://github.com/Koro33/apgpk/releases) [![GitHub repo size](https://img.shields.io/github/repo-size/Koro33/apgpk)](https://github.com/Koro33/apgpk/archive/main.zip) [![Rust](https://img.shields.io/badge/Rust-stable-brightgreen)](https://www.rust-lang.org/) [![license](https://img.shields.io/github/license/Koro33/apgpk)](https://github.com/Koro33/apgpk/blob/main/LICENSE) [![GitHub Repo stars](https://img.shields.io/github/stars/Koro33/apgpk?style=social)](https://github.com/Koro33/apgpk)
 
 A PGP key with fingerprint `FFFF FFFF` is much better than one with `86C6 F0AE` (at least looks like
 
