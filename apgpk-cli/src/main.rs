@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use apgpk_lib::{unit, utils};
+use apgpk_lib::{core, utils};
 use clap::Parser;
 use std::{
     path::PathBuf,
@@ -24,11 +24,11 @@ struct Cli {
     /// Numbers of threads to calculate
     #[arg(short, long, default_value_t = default_thread_num())]
     threads: usize,
-    /// The max backshift of time when calculating keys.
+    /// The max backshift days of time when calculating keys.
     ///
     /// Changing this default value is not recommended.
-    #[arg(long, default_value_t = 60*60*24*30)]
-    max_backshift: i64,
+    #[arg(long, default_value_t = 30)]
+    max_backshift_days: u16,
     /// Default uid
     #[arg(long, default_value_t = String::from("apgpk"))]
     uid: String,
@@ -47,7 +47,7 @@ fn log_init() {
         .with(env_filter)
         .with(formatting_layer)
         .init();
-    tracing::debug!("Log engine is initialized");
+    log::debug!("Log engine is initialized");
 }
 
 fn main() -> Result<()> {
@@ -56,23 +56,23 @@ fn main() -> Result<()> {
     log_init();
 
     let pattern = utils::parse_pattern(&cli.pattern)?;
-    tracing::info!("Runing with {} threads", cli.threads);
-    tracing::info!("Find key by pattern {:?}", pattern);
+    log::info!("Runing with {} threads", cli.threads);
+    log::info!("Find key by pattern {:?}", pattern);
 
     utils::check_output_dir(cli.output.clone())?;
 
-    let (msg_tx, msg_rx) = std::sync::mpsc::channel::<unit::Msg>();
+    let (msg_tx, msg_rx) = std::sync::mpsc::channel::<core::Msg>();
     let thread_exit = Arc::new(AtomicBool::new(false));
 
     let exit = thread_exit.clone();
 
     // Setup ctrlc signal
     ctrlc::set_handler(move || {
-        tracing::warn!("SIGNINT received, waiting all threads to exit...");
+        log::warn!("SIGNINT received, waiting all threads to exit...");
         exit.store(true, Ordering::Relaxed);
     })
     .with_context(|| {
-        tracing::error!("Error setting Ctrl-C handler");
+        log::error!("Error setting Ctrl-C handler");
         anyhow!("")
     })?;
 
@@ -84,11 +84,11 @@ fn main() -> Result<()> {
             let thread_exit = thread_exit.clone();
 
             thread::spawn(move || -> Result<()> {
-                tracing::debug!("Thread {} has been created", i);
+                log::debug!("Thread {} has been created", i);
                 loop {
-                    unit::task(
+                    core::task(
                         cli.uid.clone(),
-                        cli.max_backshift,
+                        cli.max_backshift_days,
                         &pattern,
                         &thread_exit,
                         &tx,
@@ -99,7 +99,7 @@ fn main() -> Result<()> {
                         break;
                     }
                 }
-                tracing::debug!("Thread {} complete", i);
+                log::debug!("Thread {} complete", i);
                 Ok(())
             })
         })
@@ -113,19 +113,19 @@ fn main() -> Result<()> {
     let show_speed_interval = Duration::from_secs(15);
     for msg in msg_rx {
         match msg {
-            unit::Msg::Key(k) => {
-                tracing::info!(
+            core::Msg::Key(k) => {
+                log::info!(
                     "Find key: {}",
                     utils::key2hex(&k)
                 );
                 utils::save_key(&k, cli.output.clone())?;
             }
-            unit::Msg::Speed(current_speed) => {
+            core::Msg::Speed(current_speed) => {
                 let now = Instant::now();
                 avrg_speed = (2.0 * avrg_speed + current_speed) / 3.0;
                 if (now - last_show) > show_speed_interval {
-                    tracing::info!(
-                        "Current speed ({} threads) {:.2} key/s",
+                    log::info!(
+                        "Current speed estimated ({} threads) {:.2} key/s",
                         cli.threads,
                         avrg_speed * cli.threads as f64
                     );
@@ -139,7 +139,7 @@ fn main() -> Result<()> {
         h.join().unwrap().unwrap();
     });
 
-    tracing::info!("Shutdown");
+    log::info!("Shutdown");
 
     Ok(())
 }

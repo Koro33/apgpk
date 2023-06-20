@@ -19,14 +19,15 @@ use std::{
 
 pub fn task(
     uid: String,
-    max_backshift: i64,
+    max_backshift_days: u16,
     pars: &[String],
     exit_signal: &Arc<AtomicBool>,
     msg_tx: &Sender<Msg>,
 ) -> Result<(), ApgpkError> {
-    let loop_begin = Instant::now();
     let t = Utc::now();
-    let time_block = 60 * 60;
+    let mut speed_cal_begin = Instant::now();
+    let speed_cal_block = 60 * 60 * 12;
+    let max_backshift = max_backshift_days as i64 * 24 * 60 * 60;
 
     let mut pgp_builder = SecretKeyParamsBuilder::default();
     pgp_builder
@@ -36,31 +37,27 @@ pub fn task(
         .primary_user_id(uid)
         .created_at(t);
 
-    for start in 0..=(max_backshift / time_block) {
-        for backshift in start * time_block..(start * time_block + time_block) {
-            pgp_builder.created_at(t - chrono::Duration::seconds(backshift));
-            let k = pgp_builder.build().unwrap().generate().unwrap(); // can't fail
-            let k_fp = k.fingerprint().encode_hex_upper::<String>();
-            for par in pars {
-                if k_fp.ends_with(par) {
-                    msg_tx.send(Msg::Key(Box::new(k.clone())))?;
-                }
+    for backshift in 0..max_backshift {
+        pgp_builder.created_at(t - chrono::Duration::seconds(backshift));
+        let k = pgp_builder.build().unwrap().generate().unwrap(); // can't fail
+        let k_fp = k.fingerprint().encode_hex_upper::<String>();
+        for par in pars {
+            if k_fp.ends_with(par) {
+                msg_tx.send(Msg::Key(Box::new(k.clone())))?;
             }
         }
         if exit_signal.load(Ordering::Relaxed) {
-            // drop(msg_tx);
             break;
         }
-        msg_tx.send(Msg::Speed(
-            (start * time_block + time_block) as f64
-                / (loop_begin.elapsed().as_millis() as f64 / 1000.),
-        ))?;
+        if backshift % speed_cal_block == (speed_cal_block - 1) {
+            let interval = speed_cal_begin.elapsed().as_micros() as f64 / 1_000_000.;
+            msg_tx.send(Msg::Speed(speed_cal_block as f64 / interval))?;
+            speed_cal_begin = Instant::now();
+        }
     }
 
     Ok(())
 }
-
-
 
 #[derive(Debug)]
 pub enum Msg {
@@ -81,7 +78,7 @@ mod tests {
         let handler = thread::spawn(move || -> Result<(), ApgpkError> {
             task(
                 "test".to_string(),
-                60 * 60 * 24,
+                1,
                 &["FFFFFF".to_string()],
                 &Arc::new(AtomicBool::new(false)),
                 &tx,
@@ -105,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_test() {
-        for i in 0..=0 {
+        for i in (0..=2).map(|i| i * 10) {
             println!("{}", i);
         }
     }

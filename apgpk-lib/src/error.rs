@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::unit::Msg;
+use crate::core::Msg;
 
 #[derive(Error, Debug)]
 pub enum ApgpkError {
