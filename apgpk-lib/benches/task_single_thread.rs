@@ -1,15 +1,23 @@
+use apgpk_lib::core::{task, Msg};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-
-fn fibonacci(n: u64) -> u64 {
-    match n {
-        0 => 1,
-        1 => 1,
-        n => fibonacci(n-1) + fibonacci(n-2),
-    }
-}
+use std::sync::{atomic::AtomicBool, Arc};
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("fib 20", |b| b.iter(|| fibonacci(black_box(20))));
+    let mut group = c.benchmark_group("task_single_thread");
+    group.sample_size(10);
+    group.bench_function("task_single_thread", |b| {
+        b.iter(|| {
+            let exit = Arc::new(AtomicBool::new(false));
+            let (tx, _rx) = std::sync::mpsc::channel::<Msg>();
+            task(
+                "test".to_string(),
+                black_box(1),
+                &["AAAAAAAA".to_string(), "BBBBBBBB".to_string()],
+                &exit,
+                &tx,
+            )
+        })
+    });
 }
 
 criterion_group!(benches, criterion_benchmark);
