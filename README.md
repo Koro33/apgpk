@@ -11,7 +11,7 @@ It supports only ECC key and suffix matching currently.
 ## Usage
 
 ```sh
-$ ./apgpk --help
+$ ./apgpk-cli.exe --help
 Find an awesome PGP key
 
 Usage: apgpk-cli.exe [OPTIONS] --pattern <PATH>
@@ -36,7 +36,7 @@ Options:
 Generally the only option should be given is `-p`(`--pattern`). for example:
 
 ```sh
-./apgpk -p /path/to/pattern_file
+./apgpk-cli -p /path/to/pattern_file
 ```
 
 The pattern file can contain multiple patterns, one pattern per line. For example:
@@ -52,7 +52,7 @@ FFFFFF
 > Warning: The patterns with length less than 4 are not recommended, which may result in too many keys being generated.
 
 ```log
-$ ./apgpk -p pattern
+$ ./apgpk-cli -p pattern
 2022-10-11T22:55:08.712217Z  INFO apgpk: Runing with 8 threads
 2022-10-11T22:55:08.712235Z  INFO apgpk: Find key by pattern ["AAAAAAAA", "ABCDEF0", "EE2EE2EE", "0123456789ABCDEF", "FFFFFF"]
 2022-10-11T22:55:38.751304Z  INFO apgpk: Current speed (8 threads) 186166.36 key/s
