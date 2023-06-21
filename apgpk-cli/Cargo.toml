@@ -1,0 +1,20 @@
+[package]
+name = "apgpk-cli"
+version = "0.2.0"
+edition = "2021"
+authors = ["koro33 <koro33g@gmail.com>"]
+license = "AGPL-3.0-only"
+description = "Find an awesome PGP key"
+readme = "README.md"
+homepage = "https://github.com/Koro33/apgpk"
+repository = "https://github.com/Koro33/apgpk"
+
+[dependencies]
+anyhow = "1.0.71"
+chrono = "0.4.26"
+clap = { version = "4.3.4", features = ["derive"] }
+ctrlc = { version = "3.4.0", features = ["termination"] }
+log = "0.4.19"
+env_logger = "0.10.0"
+apgpk-lib = { path = "../apgpk-lib" }
+
