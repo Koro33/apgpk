@@ -4,7 +4,9 @@
 
 A PGP key with fingerprint `FFFF FFFF` is much better than one with `86C6 F0AE` (at least looks like
 
-Use this tool to find an awesome PGP key, whose fingerprint matches a specific pattern. Currently it only supports ECC key and suffix matching.
+Use this tool to find an awesome PGP key, whose fingerprint matches a specific pattern.
+
+It supports only ECC key and suffix matching currently.
 
 ## Usage
 
@@ -12,26 +14,32 @@ Use this tool to find an awesome PGP key, whose fingerprint matches a specific p
 $ ./apgpk --help
 Find an awesome PGP key
 
-Usage: apgpk [OPTIONS] --pattern <PATH>
+Usage: apgpk-cli.exe [OPTIONS] --pattern <PATH>
 
 Options:
   -p, --pattern <PATH>
           Path of the pattern file, one pattern per line
-      --output <PATH>
-          Output directory to save the key [default: ./key]
-      --threads <THREADS>
-          Numbers of threads to calculate [default: 8]
-      --max-backshift <MAX_BACKSHIFT>
-          The max backshift of time when calculating keys [default: 86400]
+  -o, --output <PATH>
+          Directory to save the key [default: ./key_output]
+  -t, --threads <THREADS>
+          Numbers of threads to calculate, default value is the cores of cpu [default: 8]
+      --max-backshift-days <MAX_BACKSHIFT_DAYS>
+          The max backshift days when calculating keys [default: 30]
       --uid <UID>
-          Default uid [default: apgpker]
+          Default uid [default: apgpk]
   -h, --help
-          Print help information (use `--help` for more detail)
+          Print help (see more with '--help')
   -V, --version
-          Print version information
+          Print version
 ```
 
-The path of the pattern file must be given by `-p` or `--pattern`. It can contain multiple patterns, one pattern per line. For example:
+Generally the only option should be given is `-p`(`--pattern`). for example:
+
+```sh
+./apgpk -p /path/to/pattern_file
+```
+
+The pattern file can contain multiple patterns, one pattern per line. For example:
 
 ```txt
 AAAAAAAA
@@ -41,10 +49,10 @@ EE2EE2EE
 FFFFFF
 ```
 
-> The patterns with length less than 4 are not recommended, which may result in too many keys being generated.
+> Warning: The patterns with length less than 4 are not recommended, which may result in too many keys being generated.
 
 ```log
-$ ./apgpk -p pattern -o ./key
+$ ./apgpk -p pattern
 2022-10-11T22:55:08.712217Z  INFO apgpk: Runing with 8 threads
 2022-10-11T22:55:08.712235Z  INFO apgpk: Find key by pattern ["AAAAAAAA", "ABCDEF0", "EE2EE2EE", "0123456789ABCDEF", "FFFFFF"]
 2022-10-11T22:55:38.751304Z  INFO apgpk: Current speed (8 threads) 186166.36 key/s
@@ -66,7 +74,7 @@ You can find the keys in output directory, which match the pattern. Choose an aw
 ```sh
 git clone https://github.com/Koro33/apgpk.git
 cd apgpk
-cargo run --release
+cargo build --release
 ```
 
 ## License
