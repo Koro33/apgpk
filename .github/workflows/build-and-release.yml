@@ -9,7 +9,7 @@ env:
 jobs:
   build-and-release:
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           # x86_64-linux-gnu
@@ -54,12 +54,12 @@ jobs:
       - name: Move binaries
         run: |
           mkdir artifacts/
-          mv target/${{ matrix.target }}/release/apgpk${{ matrix.file-ext }} artifacts/apgpk-${{ steps.tag.outputs.tag }}-${{ matrix.arch-name }}${{ matrix.file-ext }}
+          mv target/${{ matrix.target }}/release/apgpk-cli${{ matrix.file-ext }} artifacts/apgpk-cli-${{ steps.tag.outputs.tag }}-${{ matrix.arch-name }}${{ matrix.file-ext }}
 
       - name: Calculate SHA256
         run: |
           cd artifacts/
-          openssl dgst -sha256 -r apgpk-${{ steps.tag.outputs.tag }}-${{ matrix.arch-name }}${{ matrix.file-ext }} > apgpk-${{ steps.tag.outputs.tag }}-${{ matrix.arch-name }}${{ matrix.file-ext }}.sha256sum
+          openssl dgst -sha256 -r apgpk-cli-${{ steps.tag.outputs.tag }}-${{ matrix.arch-name }}${{ matrix.file-ext }} > apgpk-cli-${{ steps.tag.outputs.tag }}-${{ matrix.arch-name }}${{ matrix.file-ext }}.sha256sum
       
       - name: Release binaries
         uses: ncipollo/release-action@v1
