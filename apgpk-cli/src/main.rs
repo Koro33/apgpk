@@ -10,7 +10,6 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
-use tracing_subscriber::{prelude::*, EnvFilter};
 
 #[derive(Parser, Clone, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -18,13 +17,13 @@ struct Cli {
     /// Path of the pattern file, one pattern per line.
     #[arg(short, long, value_name = "PATH")]
     pattern: PathBuf,
-    /// Output directory to save the key
+    /// Directory to save the key
     #[arg(short, long, value_name = "PATH", default_value = "./key_output")]
     output: PathBuf,
-    /// Numbers of threads to calculate
+    /// Numbers of threads to calculate, default value is the cores of cpu 
     #[arg(short, long, default_value_t = default_thread_num())]
     threads: usize,
-    /// The max backshift days of time when calculating keys.
+    /// The max backshift days when calculating keys.
     ///
     /// Changing this default value is not recommended.
     #[arg(long, default_value_t = 30)]
@@ -40,13 +39,7 @@ fn default_thread_num() -> usize {
 
 fn log_init() {
     // from env variable RUST_LOG
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("apgpk=info"));
-    let formatting_layer = tracing_subscriber::fmt::layer().with_writer(std::io::stdout);
-    tracing_subscriber::registry()
-        .with(env_filter)
-        .with(formatting_layer)
-        .init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     log::debug!("Log engine is initialized");
 }
 
@@ -114,10 +107,7 @@ fn main() -> Result<()> {
     for msg in msg_rx {
         match msg {
             core::Msg::Key(k) => {
-                log::info!(
-                    "Find key: {}",
-                    utils::key2hex(&k)
-                );
+                log::info!("Find key: {}", utils::key2hex(&k));
                 utils::save_key(&k, cli.output.clone())?;
             }
             core::Msg::Speed(current_speed) => {
@@ -143,4 +133,3 @@ fn main() -> Result<()> {
 
     Ok(())
 }
-

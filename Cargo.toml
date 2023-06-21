@@ -4,4 +4,3 @@ members = ["apgpk-lib", "apgpk-cli"]
 [profile.release]
 lto = true
 strip = true
-opt-level = 3
